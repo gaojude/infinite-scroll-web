@@ -4,34 +4,6 @@ import { useState, useEffect, useRef } from "react";
 
 const TYPING_SPEED = 30;
 
-function useTypewriter(text: string, startAt: number) {
-  const [displayed, setDisplayed] = useState("");
-  const [done, setDone] = useState(false);
-  const [started, setStarted] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setStarted(true), startAt);
-    return () => clearTimeout(t);
-  }, [startAt]);
-
-  useEffect(() => {
-    if (!started) return;
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < text.length) {
-        setDisplayed(text.slice(0, i + 1));
-        i++;
-      } else {
-        setDone(true);
-        clearInterval(interval);
-      }
-    }, TYPING_SPEED);
-    return () => clearInterval(interval);
-  }, [text, started]);
-
-  return { displayed, done, started };
-}
-
 function Cursor() {
   return (
     <span
@@ -41,72 +13,148 @@ function Cursor() {
   );
 }
 
-function TerminalCell({
-  lines,
+// Claude Code styled terminal cell
+function ClaudeCell({
+  dir,
+  prompt,
+  response,
   startAt,
   focused,
 }: {
-  lines: { prefix?: string; text: string; dim?: boolean }[];
+  dir: string;
+  prompt: string;
+  response?: string[];
   startAt: number;
   focused?: boolean;
 }) {
-  const [visibleLines, setVisibleLines] = useState(0);
-  const [typingLine, setTypingLine] = useState("");
-  const [allDone, setAllDone] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "typing" | "done">("idle");
+  const [typed, setTyped] = useState("");
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
-    let delay = startAt;
 
-    lines.forEach((line, idx) => {
-      timers.push(
-        setTimeout(() => {
-          setVisibleLines(idx);
-          let i = 0;
-          const interval = setInterval(() => {
-            if (i < line.text.length) {
-              setTypingLine(line.text.slice(0, i + 1));
-              i++;
-            } else {
-              setVisibleLines(idx + 1);
-              setTypingLine("");
-              clearInterval(interval);
-              if (idx === lines.length - 1) setAllDone(true);
-            }
-          }, TYPING_SPEED);
-          timers.push(interval as unknown as ReturnType<typeof setTimeout>);
-        }, delay)
-      );
-      delay += line.text.length * TYPING_SPEED + 200;
-    });
+    timers.push(setTimeout(() => {
+      setPhase("typing");
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i < prompt.length) {
+          setTyped(prompt.slice(0, i + 1));
+          i++;
+        } else {
+          clearInterval(interval);
+          setPhase("done");
+        }
+      }, TYPING_SPEED);
+      timers.push(interval as unknown as ReturnType<typeof setTimeout>);
+    }, startAt));
 
     return () => timers.forEach(clearTimeout);
-  }, [lines, startAt]);
+  }, [prompt, startAt]);
 
   return (
     <div
-      className={`flex-1 min-w-[140px] bg-[var(--color-terminal-bg)] p-2.5 font-mono text-[10px] md:text-xs overflow-hidden ${focused ? "ring-1 ring-[var(--color-accent)] ring-inset" : ""}`}
+      className={`flex-1 min-w-[160px] bg-[#1e1e22] p-0 font-mono text-[11px] md:text-[13px] overflow-hidden leading-[1.5] flex flex-col ${focused ? "ring-1 ring-[var(--color-accent)] ring-inset" : ""}`}
     >
-      {lines.slice(0, visibleLines).map((line, i) => (
-        <div key={i} className={line.dim ? "text-[var(--color-text-dim)] opacity-60" : ""}>
-          {line.prefix && (
-            <span className="text-[var(--color-green)] mr-1.5">{line.prefix}</span>
-          )}
-          <span className={line.dim ? "" : "text-[var(--color-text)]"}>{line.text}</span>
+      {/* Welcome box — orange border, matches real Claude Code */}
+      <div className="m-2 mb-1">
+        <div className="border border-[#b5593c] rounded flex overflow-hidden">
+          {/* Main welcome area */}
+          <div className="flex-1 px-3 py-2 text-center">
+            <div className="text-[var(--color-text-dim)] text-[8px] md:text-[9px] mb-0.5">── Claude Code ──</div>
+            <div className="text-[var(--color-text)] font-bold text-[10px] md:text-[12px]">Welcome back!</div>
+            <div className="text-[#c46a45] text-[12px] md:text-[14px] my-1 leading-none">
+              <div>&nbsp;&nbsp;▐▛██▜▌</div>
+              <div>&nbsp;▝▜████▛▘</div>
+            </div>
+            <div className="text-[var(--color-text-dim)] text-[8px] md:text-[9px] leading-relaxed">
+              <div>Opus 4.6 (1M context)</div>
+              <div>{dir}</div>
+            </div>
+          </div>
+          {/* Tips sidebar */}
+          <div className="border-l border-[#b5593c] px-2 py-2 text-[7px] md:text-[8px] w-[90px] md:w-[110px]">
+            <div className="text-[#b5593c] font-bold">Tips</div>
+            <div className="text-[var(--color-text-dim)] mt-0.5">Run /init to crea...</div>
+            <div className="border-t border-[#b5593c] my-1" />
+            <div className="text-[#b5593c] font-bold">Recent activity</div>
+            <div className="text-[var(--color-text-dim)] mt-0.5">No recent activity</div>
+          </div>
         </div>
-      ))}
-      {visibleLines < lines.length && typingLine && (
-        <div>
-          {lines[visibleLines].prefix && (
-            <span className="text-[var(--color-green)] mr-1.5">{lines[visibleLines].prefix}</span>
-          )}
-          <span className="text-[var(--color-text)]">{typingLine}</span>
-          {focused && <Cursor />}
+      </div>
+
+      {/* Prompt — dark background bar like real Claude Code */}
+      <div className="bg-[#2a2a30] mx-0 px-3 py-1.5 flex items-start">
+        <span className="text-[var(--color-text-dim)] mr-1.5 font-bold">❯</span>
+        <span className="text-[var(--color-text)] font-bold">{typed}</span>
+        {phase === "typing" && focused && <Cursor />}
+      </div>
+
+      {/* Response with bullet */}
+      {phase === "done" && response && (
+        <div className="px-3 py-1.5">
+          {response.map((line, i) => (
+            <div key={i} className="flex items-start gap-1.5 text-[var(--color-text)] opacity-80">
+              {i === 0 && <span className="text-[var(--color-text-dim)]">●</span>}
+              {i > 0 && <span className="opacity-0">●</span>}
+              <span>{line}</span>
+            </div>
+          ))}
         </div>
       )}
-      {allDone && focused && (
-        <div className="mt-0.5 flex">
-          <span className="text-[var(--color-green)] mr-1.5">→</span>
+
+      <div className="flex-1" />
+
+      {/* Bottom separator + next prompt */}
+      {phase === "done" && (
+        <div>
+          <div className="border-t border-[var(--color-border)] mx-2" />
+          <div className="px-3 py-1 flex items-start">
+            <span className="text-[var(--color-text-dim)] mr-1.5 font-bold">❯</span>
+            {focused && <Cursor />}
+          </div>
+          <div className="border-t border-[var(--color-border)] mx-2" />
+        </div>
+      )}
+
+      {/* Status bar */}
+      <div className="px-3 py-1 flex items-center gap-1.5 text-[8px] md:text-[9px]">
+        <span className="text-[#b5593c]">⏵⏵</span>
+        <span className="text-[#b5593c]">bypass permissions on</span>
+        <span className="text-[var(--color-text-dim)] ml-auto">◐ medium</span>
+      </div>
+    </div>
+  );
+}
+
+// Plain terminal cell (for test runners, dev servers)
+function ShellCell({
+  lines,
+  focused,
+}: {
+  lines: { text: string; green?: boolean; dim?: boolean }[];
+  focused?: boolean;
+}) {
+  return (
+    <div
+      className={`flex-1 min-w-[140px] bg-[var(--color-terminal-bg)] p-2 font-mono text-[9px] md:text-[11px] overflow-hidden leading-[1.4] ${focused ? "ring-1 ring-[var(--color-accent)] ring-inset" : ""}`}
+    >
+      {lines.map((line, i) => (
+        <div
+          key={i}
+          className={
+            line.green
+              ? "text-[var(--color-green)]"
+              : line.dim
+                ? "text-[var(--color-text-dim)] opacity-60"
+                : "text-[var(--color-text)]"
+          }
+        >
+          {line.text}
+        </div>
+      ))}
+      {focused && (
+        <div className="flex mt-0.5">
+          <span className="text-[var(--color-green)] mr-1">→</span>
           <Cursor />
         </div>
       )}
@@ -143,10 +191,10 @@ function NotesCell({
 
   return (
     <div
-      className={`flex-1 min-w-[140px] bg-[#111113] p-2.5 font-mono text-[10px] md:text-xs text-[var(--color-text-dim)] overflow-hidden ${focused ? "ring-1 ring-[var(--color-accent)] ring-inset" : ""}`}
+      className={`flex-1 min-w-[140px] bg-[#111113] p-2 font-mono text-[9px] md:text-[11px] text-[var(--color-text-dim)] overflow-hidden leading-[1.4] ${focused ? "ring-1 ring-[var(--color-accent)] ring-inset" : ""}`}
     >
       {content.split("\n").map((line, i) => (
-        <div key={i} className="whitespace-pre leading-relaxed">
+        <div key={i} className="whitespace-pre">
           {line || "\u00A0"}
         </div>
       ))}
@@ -188,90 +236,47 @@ function DemoRow({
           {title}
         </span>
       </div>
-      <div className="flex divide-x divide-[var(--color-border)] h-32 md:h-40">
+      <div className="flex divide-x divide-[var(--color-border)] h-48 md:h-56">
         {children}
       </div>
     </div>
   );
 }
 
-// Row 1: Claude Code working on auth
-const ROW1_CLAUDE = [
-  { text: "~/projects/saas", dim: true },
-  { prefix: "→", text: "claude" },
-  { text: "Claude Code v1.0.2", dim: true },
-  { prefix: ">", text: "implement JWT auth middleware" },
-  { text: "I'll create the auth middleware...", dim: true },
-];
-
-// Row 1 split: tests running
-const ROW1_TESTS = [
-  { text: "~/projects/saas", dim: true },
-  { prefix: "→", text: "npm test -- --watch" },
-  { text: "PASS src/auth.test.ts (4 tests)", dim: true },
-  { text: "PASS src/middleware.test.ts (7 tests)", dim: true },
-];
-
-// Row 2: Claude Code working on frontend
-const ROW2_CLAUDE = [
-  { text: "~/projects/saas/web", dim: true },
-  { prefix: "→", text: "claude" },
-  { text: "Claude Code v1.0.2", dim: true },
-  { prefix: ">", text: "add dark mode to the dashboard" },
-  { text: "I'll update the theme provider...", dim: true },
-];
-
-// Row 2 split: dev server
-const ROW2_DEV = [
-  { text: "~/projects/saas/web", dim: true },
-  { prefix: "→", text: "npm run dev" },
-  { text: "ready on localhost:3000", dim: true },
-  { text: "✓ compiled in 240ms", dim: true },
-];
-
-// Row 3: Claude Code on infra
-const ROW3_CLAUDE = [
-  { text: "~/projects/saas/infra", dim: true },
-  { prefix: "→", text: "claude" },
-  { text: "Claude Code v1.0.2", dim: true },
-  { prefix: ">", text: "set up staging environment" },
-  { text: "I'll create the Terraform config...", dim: true },
-];
-
 const EVENTS = [
-  // Start: Row 1 with Claude Code on auth
   { t: 0, type: "start" },
-  // Split Row 1: open test runner alongside Claude
+  // Split Row 1: test runner
   { t: 3500, type: "key", keys: "⌘ D" },
   { t: 4000, type: "split1" },
-  // Focus notes, jot down plan
+  // Focus notes
   { t: 6000, type: "key", keys: "⌘ →" },
   { t: 6300, type: "focus-r1-notes" },
-  // New row: spin up another Claude for frontend
+  // New row: frontend Claude
   { t: 9000, type: "key", keys: "⌘ ⇧ ↓" },
   { t: 9500, type: "row2" },
-  // Split Row 2: dev server alongside Claude
+  // Split Row 2: dev server
   { t: 12000, type: "key", keys: "⌘ D" },
   { t: 12500, type: "split2" },
-  // New row: third Claude for infra
+  // New row: infra Claude
   { t: 14500, type: "key", keys: "⌘ ⇧ ↓" },
   { t: 15000, type: "row3" },
-  // Navigate between rows
+  // Navigate back up
   { t: 17000, type: "key", keys: "⌘ ↑" },
   { t: 17300, type: "focus-r2" },
   { t: 18500, type: "key", keys: "⌘ ↑" },
   { t: 18800, type: "focus-r1" },
-  // Scroll down to show all rows
+  // Scroll to show everything
   { t: 20000, type: "scroll-down" },
-  // Close app
-  { t: 22000, type: "key", keys: "⌘ Q" },
+  // Mouse moves to close button
+  { t: 21500, type: "mouse-to-close" },
   { t: 22500, type: "close-app" },
-  // Reopen — all three Claude sessions resume
-  { t: 25000, type: "reopen-app" },
-  { t: 28000, type: "reset" },
+  // Desktop with icon, mouse double-clicks
+  { t: 24500, type: "mouse-to-icon" },
+  { t: 25500, type: "reopen-app" },
+  { t: 28500, type: "reset" },
 ] as const;
 
-const CYCLE = 29000;
+const CYCLE = 29500;
 
 export function Demo() {
   const [showKey, setShowKey] = useState<string | null>(null);
@@ -283,6 +288,8 @@ export function Demo() {
   const [scrollOffset, setScrollOffset] = useState(0);
   const [appClosed, setAppClosed] = useState(false);
   const [resumed, setResumed] = useState(false);
+  const [mousePos, setMousePos] = useState<{ x: string; y: string } | null>(null);
+  const [mouseClick, setMouseClick] = useState(false);
 
   useEffect(() => {
     function runCycle() {
@@ -295,6 +302,8 @@ export function Demo() {
       setShowKey(null);
       setAppClosed(false);
       setResumed(false);
+      setMousePos(null);
+      setMouseClick(false);
 
       const timers: ReturnType<typeof setTimeout>[] = [];
 
@@ -308,7 +317,7 @@ export function Demo() {
                 break;
               case "split1":
                 setShowSplit1(true);
-                setFocusedCell("r1-tests");
+                setFocusedCell("r1-shell");
                 break;
               case "focus-r1-notes":
                 setFocusedCell("r1-notes");
@@ -320,7 +329,7 @@ export function Demo() {
                 break;
               case "split2":
                 setShowSplit2(true);
-                setFocusedCell("r2-dev");
+                setFocusedCell("r2-shell");
                 break;
               case "row3":
                 setShowRow3(true);
@@ -339,16 +348,32 @@ export function Demo() {
                 setScrollOffset(2);
                 setFocusedCell("r3-claude");
                 break;
-              case "close-app":
-                setAppClosed(true);
-                setShowKey(null);
+              case "mouse-to-close":
+                setMousePos({ x: "12px", y: "12px" });
+                setScrollOffset(0);
                 setFocusedCell("");
                 break;
+              case "close-app":
+                setMouseClick(true);
+                setTimeout(() => {
+                  setMouseClick(false);
+                  setMousePos(null);
+                  setAppClosed(true);
+                }, 200);
+                break;
+              case "mouse-to-icon":
+                setMousePos({ x: "50%", y: "55%" });
+                break;
               case "reopen-app":
-                setAppClosed(false);
-                setResumed(true);
-                setFocusedCell("r1-claude");
-                setScrollOffset(0);
+                setMouseClick(true);
+                setTimeout(() => {
+                  setMouseClick(false);
+                  setMousePos(null);
+                  setAppClosed(false);
+                  setResumed(true);
+                  setFocusedCell("r1-claude");
+                  setScrollOffset(0);
+                }, 200);
                 break;
             }
           }, event.t)
@@ -366,7 +391,6 @@ export function Demo() {
 
   return (
     <div className="relative">
-      {/* macOS window chrome */}
       <div className="rounded-xl border border-[var(--color-border)] overflow-hidden bg-[var(--color-surface)] shadow-2xl shadow-black/40">
         {/* Title bar */}
         <div className="flex items-center px-3 h-8 bg-[#1e1e22] border-b border-[var(--color-border)]">
@@ -384,31 +408,47 @@ export function Demo() {
         {/* Viewport */}
         <div
           className="relative overflow-hidden"
-          style={{ height: "clamp(260px, 42vw, 400px)" }}
+          style={{ height: "clamp(300px, 48vw, 480px)" }}
         >
-          {/* Close overlay */}
+          {/* Mouse cursor */}
+          {mousePos && (
+            <div
+              className="absolute z-40 pointer-events-none transition-all duration-500 ease-in-out"
+              style={{ left: mousePos.x, top: mousePos.y }}
+            >
+              <svg width="16" height="20" viewBox="0 0 16 20" fill="none" className={mouseClick ? "scale-90" : ""}>
+                <path d="M1 1L1 14L4.5 10.5L8 17L10.5 16L7 9.5L12 9.5L1 1Z" fill="white" stroke="black" strokeWidth="1"/>
+              </svg>
+            </div>
+          )}
+
+          {/* Desktop with app icon */}
           {appClosed && (
             <div
-              className="absolute inset-0 z-30 bg-[var(--color-bg)] flex flex-col items-center justify-center gap-3"
-              style={{ animation: "fadeInUp 0.3s ease-out both" }}
+              className="absolute inset-0 z-30 flex flex-col items-center justify-center"
+              style={{
+                animation: "fadeInUp 0.3s ease-out both",
+                background: "linear-gradient(180deg, #1a1a2e 0%, #0a0a14 100%)",
+              }}
             >
-              <div className="text-5xl opacity-40">∞</div>
-              <div className="text-xs text-[var(--color-text-dim)]">
-                3 Claude sessions saved
+              <div className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-white/5 transition-colors">
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-purple-600 flex items-center justify-center shadow-lg">
+                  <span className="text-white text-2xl md:text-3xl font-bold">∞</span>
+                </div>
+                <span className="text-[10px] text-[var(--color-text-dim)]">Infinite Scroll</span>
               </div>
-              <div className="mt-2 text-[10px] text-[var(--color-accent)]">
-                Reopening...
+              <div className="mt-4 text-[10px] text-[var(--color-text-dim)] opacity-50">
+                3 sessions waiting...
               </div>
             </div>
           )}
 
-          {/* Resume badge */}
           {resumed && !appClosed && (
             <div
               className="absolute top-2 left-1/2 -translate-x-1/2 z-20 bg-[var(--color-green)]/10 border border-[var(--color-green)]/30 rounded-full px-3 py-0.5 text-[10px] text-[var(--color-green)]"
               style={{ animation: "fadeInUp 0.3s ease-out both" }}
             >
-              Sessions resumed
+              All sessions resumed
             </div>
           )}
 
@@ -416,22 +456,31 @@ export function Demo() {
 
           <div
             className="transition-transform duration-500 ease-in-out"
-            style={{
-              transform: `translateY(-${scrollOffset * 168}px)`,
-            }}
+            style={{ transform: `translateY(-${scrollOffset * 230}px)` }}
           >
-            {/* Row 1: Auth — Claude + tests + notes */}
+            {/* Row 1: Auth — Claude Code + tests + notes */}
             <DemoRow title="Row #1 — auth service" show>
-              <TerminalCell
-                lines={ROW1_CLAUDE}
+              <ClaudeCell
+                dir="~/projects/saas"
+                prompt="implement JWT auth middleware"
+                response={[
+                  "I'll create the auth middleware.",
+                  "Writing src/middleware/auth.ts...",
+                  "✓ Created JWT verification",
+                ]}
                 startAt={400}
                 focused={focusedCell === "r1-claude"}
               />
               {showSplit1 && (
-                <TerminalCell
-                  lines={ROW1_TESTS}
-                  startAt={200}
-                  focused={focusedCell === "r1-tests"}
+                <ShellCell
+                  lines={[
+                    { text: "~/projects/saas", dim: true },
+                    { text: "→ npm test -- --watch" },
+                    { text: "PASS src/auth.test.ts (4 tests)", green: true },
+                    { text: "PASS src/middleware.test.ts (7 tests)", green: true },
+                    { text: "Tests: 11 passed, 11 total", dim: true },
+                  ]}
+                  focused={focusedCell === "r1-shell"}
                 />
               )}
               <NotesCell
@@ -440,18 +489,28 @@ export function Demo() {
               />
             </DemoRow>
 
-            {/* Row 2: Frontend — Claude + dev server + notes */}
+            {/* Row 2: Frontend — Claude Code + dev server + notes */}
             <DemoRow title="Row #2 — frontend" show={showRow2}>
-              <TerminalCell
-                lines={ROW2_CLAUDE}
+              <ClaudeCell
+                dir="~/projects/saas/web"
+                prompt="add dark mode to the dashboard"
+                response={[
+                  "I'll update the theme provider.",
+                  "Editing src/theme.tsx...",
+                  "✓ Dark mode toggle added",
+                ]}
                 startAt={300}
                 focused={focusedCell === "r2-claude"}
               />
               {showSplit2 && (
-                <TerminalCell
-                  lines={ROW2_DEV}
-                  startAt={200}
-                  focused={focusedCell === "r2-dev"}
+                <ShellCell
+                  lines={[
+                    { text: "~/projects/saas/web", dim: true },
+                    { text: "→ npm run dev" },
+                    { text: "ready on localhost:3000", dim: true },
+                    { text: "✓ compiled in 240ms", green: true },
+                  ]}
+                  focused={focusedCell === "r2-shell"}
                 />
               )}
               <NotesCell
@@ -460,10 +519,16 @@ export function Demo() {
               />
             </DemoRow>
 
-            {/* Row 3: Infra — Claude + notes */}
+            {/* Row 3: Infra — Claude Code + notes */}
             <DemoRow title="Row #3 — infrastructure" show={showRow3}>
-              <TerminalCell
-                lines={ROW3_CLAUDE}
+              <ClaudeCell
+                dir="~/projects/saas/infra"
+                prompt="set up staging environment"
+                response={[
+                  "I'll create the Terraform config.",
+                  "Writing infra/staging.tf...",
+                  "✓ Staging env configured",
+                ]}
                 startAt={300}
                 focused={focusedCell === "r3-claude"}
               />
@@ -476,7 +541,6 @@ export function Demo() {
         </div>
       </div>
 
-      {/* Scroll dots */}
       <div className="flex justify-center mt-3 gap-1">
         {[0, 1, 2].map((i) => (
           <div
