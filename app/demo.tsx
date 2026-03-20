@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 
-const TYPING_SPEED = 35;
+const TYPING_SPEED = 30;
 
 function useTypewriter(text: string, startAt: number) {
   const [displayed, setDisplayed] = useState("");
@@ -42,40 +42,72 @@ function Cursor() {
 }
 
 function TerminalCell({
-  dir,
-  command,
-  output,
+  lines,
   startAt,
   focused,
 }: {
-  dir: string;
-  command: string;
-  output?: string[];
+  lines: { prefix?: string; text: string; dim?: boolean }[];
   startAt: number;
   focused?: boolean;
 }) {
-  const { displayed, done } = useTypewriter(command, startAt);
+  const [visibleLines, setVisibleLines] = useState(0);
+  const [typingLine, setTypingLine] = useState("");
+  const [allDone, setAllDone] = useState(false);
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let delay = startAt;
+
+    lines.forEach((line, idx) => {
+      timers.push(
+        setTimeout(() => {
+          setVisibleLines(idx);
+          let i = 0;
+          const interval = setInterval(() => {
+            if (i < line.text.length) {
+              setTypingLine(line.text.slice(0, i + 1));
+              i++;
+            } else {
+              setVisibleLines(idx + 1);
+              setTypingLine("");
+              clearInterval(interval);
+              if (idx === lines.length - 1) setAllDone(true);
+            }
+          }, TYPING_SPEED);
+          timers.push(interval as unknown as ReturnType<typeof setTimeout>);
+        }, delay)
+      );
+      delay += line.text.length * TYPING_SPEED + 200;
+    });
+
+    return () => timers.forEach(clearTimeout);
+  }, [lines, startAt]);
+
   return (
     <div
-      className={`flex-1 min-w-[120px] bg-[var(--color-terminal-bg)] p-2.5 font-mono text-[10px] md:text-xs overflow-hidden relative ${focused ? "ring-1 ring-[var(--color-accent)] ring-inset" : ""}`}
+      className={`flex-1 min-w-[140px] bg-[var(--color-terminal-bg)] p-2.5 font-mono text-[10px] md:text-xs overflow-hidden ${focused ? "ring-1 ring-[var(--color-accent)] ring-inset" : ""}`}
     >
-      <div className="text-[var(--color-text-dim)] opacity-60">{dir}</div>
-      <div className="flex mt-0.5">
-        <span className="text-[var(--color-green)] mr-1.5">→</span>
-        <span className="text-[var(--color-text)]">{displayed}</span>
-        {!done && focused && <Cursor />}
-      </div>
-      {done && output && (
-        <div className="mt-1 text-[var(--color-text-dim)] opacity-70">
-          {output.map((l, i) => (
-            <div key={i}>{l}</div>
-          ))}
+      {lines.slice(0, visibleLines).map((line, i) => (
+        <div key={i} className={line.dim ? "text-[var(--color-text-dim)] opacity-60" : ""}>
+          {line.prefix && (
+            <span className="text-[var(--color-green)] mr-1.5">{line.prefix}</span>
+          )}
+          <span className={line.dim ? "" : "text-[var(--color-text)]"}>{line.text}</span>
+        </div>
+      ))}
+      {visibleLines < lines.length && typingLine && (
+        <div>
+          {lines[visibleLines].prefix && (
+            <span className="text-[var(--color-green)] mr-1.5">{lines[visibleLines].prefix}</span>
+          )}
+          <span className="text-[var(--color-text)]">{typingLine}</span>
+          {focused && <Cursor />}
         </div>
       )}
-      {done && (
+      {allDone && focused && (
         <div className="mt-0.5 flex">
           <span className="text-[var(--color-green)] mr-1.5">→</span>
-          {focused && <Cursor />}
+          <Cursor />
         </div>
       )}
     </div>
@@ -90,31 +122,28 @@ function NotesCell({
   focused?: boolean;
 }) {
   const [content, setContent] = useState("");
-  const [typing, setTyping] = useState(false);
   const prevFocused = useRef(false);
 
   useEffect(() => {
-    // Only start typing when focus arrives (transition from false→true)
-    if (focused && !prevFocused.current && !typing && content.length < text.length) {
-      setTyping(true);
+    if (focused && !prevFocused.current && content.length < text.length) {
       let i = content.length;
       const interval = setInterval(() => {
         if (i < text.length) {
           setContent(text.slice(0, i + 1));
           i++;
         } else {
-          setTyping(false);
           clearInterval(interval);
         }
       }, TYPING_SPEED);
+      prevFocused.current = true;
       return () => clearInterval(interval);
     }
-    prevFocused.current = !!focused;
-  }, [focused, text, typing, content.length]);
+    if (!focused) prevFocused.current = false;
+  }, [focused, text, content.length]);
 
   return (
     <div
-      className={`flex-1 min-w-[120px] bg-[#111113] p-2.5 font-mono text-[10px] md:text-xs text-[var(--color-text-dim)] overflow-hidden ${focused ? "ring-1 ring-[var(--color-accent)] ring-inset" : ""}`}
+      className={`flex-1 min-w-[140px] bg-[#111113] p-2.5 font-mono text-[10px] md:text-xs text-[var(--color-text-dim)] overflow-hidden ${focused ? "ring-1 ring-[var(--color-accent)] ring-inset" : ""}`}
     >
       {content.split("\n").map((line, i) => (
         <div key={i} className="whitespace-pre leading-relaxed">
@@ -159,63 +188,113 @@ function DemoRow({
           {title}
         </span>
       </div>
-      <div className="flex divide-x divide-[var(--color-border)] h-28 md:h-36">
+      <div className="flex divide-x divide-[var(--color-border)] h-32 md:h-40">
         {children}
       </div>
     </div>
   );
 }
 
-// Timeline: sequence of events with timestamps (ms)
+// Row 1: Claude Code working on auth
+const ROW1_CLAUDE = [
+  { text: "~/projects/saas", dim: true },
+  { prefix: "→", text: "claude" },
+  { text: "Claude Code v1.0.2", dim: true },
+  { prefix: ">", text: "implement JWT auth middleware" },
+  { text: "I'll create the auth middleware...", dim: true },
+];
+
+// Row 1 split: tests running
+const ROW1_TESTS = [
+  { text: "~/projects/saas", dim: true },
+  { prefix: "→", text: "npm test -- --watch" },
+  { text: "PASS src/auth.test.ts (4 tests)", dim: true },
+  { text: "PASS src/middleware.test.ts (7 tests)", dim: true },
+];
+
+// Row 2: Claude Code working on frontend
+const ROW2_CLAUDE = [
+  { text: "~/projects/saas/web", dim: true },
+  { prefix: "→", text: "claude" },
+  { text: "Claude Code v1.0.2", dim: true },
+  { prefix: ">", text: "add dark mode to the dashboard" },
+  { text: "I'll update the theme provider...", dim: true },
+];
+
+// Row 2 split: dev server
+const ROW2_DEV = [
+  { text: "~/projects/saas/web", dim: true },
+  { prefix: "→", text: "npm run dev" },
+  { text: "ready on localhost:3000", dim: true },
+  { text: "✓ compiled in 240ms", dim: true },
+];
+
+// Row 3: Claude Code on infra
+const ROW3_CLAUDE = [
+  { text: "~/projects/saas/infra", dim: true },
+  { prefix: "→", text: "claude" },
+  { text: "Claude Code v1.0.2", dim: true },
+  { prefix: ">", text: "set up staging environment" },
+  { text: "I'll create the Terraform config...", dim: true },
+];
+
 const EVENTS = [
+  // Start: Row 1 with Claude Code on auth
   { t: 0, type: "start" },
-  { t: 2500, type: "key", keys: "⌘ D" },
-  { t: 3000, type: "split1" },
-  { t: 5000, type: "key", keys: "⌘ ⇧ ↓" },
-  { t: 5500, type: "row2" },
-  { t: 7500, type: "key", keys: "⌘ D" },
-  { t: 8000, type: "split2" },
-  { t: 10000, type: "key", keys: "⌘ ⇧ ↓" },
-  { t: 10500, type: "row3" },
-  { t: 12500, type: "key", keys: "⌘ ↑" },
-  { t: 13000, type: "focus-r2" },
-  { t: 14000, type: "key", keys: "⌘ →" },
-  { t: 14500, type: "focus-r2-notes" },
-  // Close the app
-  { t: 16500, type: "key", keys: "⌘ Q" },
-  { t: 17000, type: "close-app" },
-  // Reopen — sessions resume
-  { t: 19500, type: "reopen-app" },
-  { t: 22500, type: "reset" },
+  // Split Row 1: open test runner alongside Claude
+  { t: 3500, type: "key", keys: "⌘ D" },
+  { t: 4000, type: "split1" },
+  // Focus notes, jot down plan
+  { t: 6000, type: "key", keys: "⌘ →" },
+  { t: 6300, type: "focus-r1-notes" },
+  // New row: spin up another Claude for frontend
+  { t: 9000, type: "key", keys: "⌘ ⇧ ↓" },
+  { t: 9500, type: "row2" },
+  // Split Row 2: dev server alongside Claude
+  { t: 12000, type: "key", keys: "⌘ D" },
+  { t: 12500, type: "split2" },
+  // New row: third Claude for infra
+  { t: 14500, type: "key", keys: "⌘ ⇧ ↓" },
+  { t: 15000, type: "row3" },
+  // Navigate between rows
+  { t: 17000, type: "key", keys: "⌘ ↑" },
+  { t: 17300, type: "focus-r2" },
+  { t: 18500, type: "key", keys: "⌘ ↑" },
+  { t: 18800, type: "focus-r1" },
+  // Scroll down to show all rows
+  { t: 20000, type: "scroll-down" },
+  // Close app
+  { t: 22000, type: "key", keys: "⌘ Q" },
+  { t: 22500, type: "close-app" },
+  // Reopen — all three Claude sessions resume
+  { t: 25000, type: "reopen-app" },
+  { t: 28000, type: "reset" },
 ] as const;
 
-const CYCLE = 23500;
+const CYCLE = 29000;
 
 export function Demo() {
-  const [tick, setTick] = useState(0);
   const [showKey, setShowKey] = useState<string | null>(null);
   const [showSplit1, setShowSplit1] = useState(false);
   const [showRow2, setShowRow2] = useState(false);
   const [showSplit2, setShowSplit2] = useState(false);
   const [showRow3, setShowRow3] = useState(false);
-  const [focusedCell, setFocusedCell] = useState("r1-t1");
+  const [focusedCell, setFocusedCell] = useState("r1-claude");
   const [scrollOffset, setScrollOffset] = useState(0);
   const [appClosed, setAppClosed] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const cycleRef = useRef(0);
+  const [resumed, setResumed] = useState(false);
 
   useEffect(() => {
     function runCycle() {
-      // Reset
       setShowSplit1(false);
       setShowRow2(false);
       setShowSplit2(false);
       setShowRow3(false);
-      setFocusedCell("r1-t1");
+      setFocusedCell("r1-claude");
       setScrollOffset(0);
       setShowKey(null);
       setAppClosed(false);
-      setTick((t) => t + 1);
+      setResumed(false);
 
       const timers: ReturnType<typeof setTimeout>[] = [];
 
@@ -225,31 +304,40 @@ export function Demo() {
             switch (event.type) {
               case "key":
                 setShowKey(event.keys);
-                setTimeout(() => setShowKey(null), 400);
+                setTimeout(() => setShowKey(null), 450);
                 break;
               case "split1":
                 setShowSplit1(true);
-                setFocusedCell("r1-t2");
+                setFocusedCell("r1-tests");
+                break;
+              case "focus-r1-notes":
+                setFocusedCell("r1-notes");
                 break;
               case "row2":
                 setShowRow2(true);
-                setFocusedCell("r2-t1");
+                setFocusedCell("r2-claude");
+                setScrollOffset(1);
                 break;
               case "split2":
                 setShowSplit2(true);
-                setFocusedCell("r2-t2");
+                setFocusedCell("r2-dev");
                 break;
               case "row3":
                 setShowRow3(true);
-                setFocusedCell("r3-t1");
-                setScrollOffset(1);
+                setFocusedCell("r3-claude");
+                setScrollOffset(2);
                 break;
               case "focus-r2":
-                setFocusedCell("r2-t1");
+                setFocusedCell("r2-claude");
+                setScrollOffset(1);
+                break;
+              case "focus-r1":
+                setFocusedCell("r1-claude");
                 setScrollOffset(0);
                 break;
-              case "focus-r2-notes":
-                setFocusedCell("r2-notes");
+              case "scroll-down":
+                setScrollOffset(2);
+                setFocusedCell("r3-claude");
                 break;
               case "close-app":
                 setAppClosed(true);
@@ -258,7 +346,8 @@ export function Demo() {
                 break;
               case "reopen-app":
                 setAppClosed(false);
-                setFocusedCell("r2-t1");
+                setResumed(true);
+                setFocusedCell("r1-claude");
                 setScrollOffset(0);
                 break;
             }
@@ -266,12 +355,8 @@ export function Demo() {
         );
       }
 
-      const next = setTimeout(() => {
-        cycleRef.current++;
-        runCycle();
-      }, CYCLE);
+      const next = setTimeout(runCycle, CYCLE);
       timers.push(next);
-
       return timers;
     }
 
@@ -296,92 +381,94 @@ export function Demo() {
           <div className="w-12" />
         </div>
 
-        {/* Viewport — clips and scrolls */}
+        {/* Viewport */}
         <div
           className="relative overflow-hidden"
-          style={{ height: "clamp(240px, 40vw, 380px)" }}
+          style={{ height: "clamp(260px, 42vw, 400px)" }}
         >
-        {/* Close/reopen overlay */}
-        {appClosed && (
-          <div
-            className="absolute inset-0 z-30 bg-[var(--color-bg)] flex flex-col items-center justify-center gap-4"
-            style={{ animation: "fadeInUp 0.3s ease-out both" }}
-          >
-            <div className="text-4xl">∞</div>
-            <div className="text-sm text-[var(--color-text-dim)]">
-              Session saved. Reopening...
+          {/* Close overlay */}
+          {appClosed && (
+            <div
+              className="absolute inset-0 z-30 bg-[var(--color-bg)] flex flex-col items-center justify-center gap-3"
+              style={{ animation: "fadeInUp 0.3s ease-out both" }}
+            >
+              <div className="text-5xl opacity-40">∞</div>
+              <div className="text-xs text-[var(--color-text-dim)]">
+                3 Claude sessions saved
+              </div>
+              <div className="mt-2 text-[10px] text-[var(--color-accent)]">
+                Reopening...
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Resume badge */}
+          {resumed && !appClosed && (
+            <div
+              className="absolute top-2 left-1/2 -translate-x-1/2 z-20 bg-[var(--color-green)]/10 border border-[var(--color-green)]/30 rounded-full px-3 py-0.5 text-[10px] text-[var(--color-green)]"
+              style={{ animation: "fadeInUp 0.3s ease-out both" }}
+            >
+              Sessions resumed
+            </div>
+          )}
 
           <KeyCombo keys={showKey ?? ""} show={!!showKey} />
 
           <div
-            ref={scrollRef}
             className="transition-transform duration-500 ease-in-out"
             style={{
-              transform: `translateY(-${scrollOffset * 140}px)`,
+              transform: `translateY(-${scrollOffset * 168}px)`,
             }}
           >
-            {/* Row 1 */}
-            <DemoRow title="Row #1" show>
+            {/* Row 1: Auth — Claude + tests + notes */}
+            <DemoRow title="Row #1 — auth service" show>
               <TerminalCell
-                dir="~/projects/api"
-                command="npm run dev"
-                output={["Server running on :3000"]}
-                startAt={500}
-                focused={focusedCell === "r1-t1"}
+                lines={ROW1_CLAUDE}
+                startAt={400}
+                focused={focusedCell === "r1-claude"}
               />
               {showSplit1 && (
                 <TerminalCell
-                  dir="~/projects/api"
-                  command="npm test -- --watch"
-                  output={["PASS src/auth.test.ts"]}
-                  startAt={0}
-                  focused={focusedCell === "r1-t2"}
+                  lines={ROW1_TESTS}
+                  startAt={200}
+                  focused={focusedCell === "r1-tests"}
                 />
               )}
               <NotesCell
-                text={"# API Sprint\n\n- [x] auth middleware\n- [ ] rate limiting\n- [ ] logging"}
+                text={"# Auth TODO\n\n- JWT middleware\n- refresh tokens\n- rate limiting\n- tests passing ✓"}
                 focused={focusedCell === "r1-notes"}
               />
             </DemoRow>
 
-            {/* Row 2 */}
-            <DemoRow title="Row #2" show={showRow2}>
+            {/* Row 2: Frontend — Claude + dev server + notes */}
+            <DemoRow title="Row #2 — frontend" show={showRow2}>
               <TerminalCell
-                dir="~/projects/web"
-                command="claude"
-                output={["Claude Code v1.0"]}
+                lines={ROW2_CLAUDE}
                 startAt={300}
-                focused={focusedCell === "r2-t1"}
+                focused={focusedCell === "r2-claude"}
               />
               {showSplit2 && (
                 <TerminalCell
-                  dir="~/projects/web"
-                  command="npm run build"
-                  output={["✓ 47 modules built"]}
-                  startAt={0}
-                  focused={focusedCell === "r2-t2"}
+                  lines={ROW2_DEV}
+                  startAt={200}
+                  focused={focusedCell === "r2-dev"}
                 />
               )}
               <NotesCell
-                text={"# Frontend\n\n- dark mode\n- mobile nav\n- perf audit"}
+                text={"# Frontend\n\n- dark mode toggle\n- dashboard layout\n- mobile responsive"}
                 focused={focusedCell === "r2-notes"}
               />
             </DemoRow>
 
-            {/* Row 3 */}
-            <DemoRow title="Row #3" show={showRow3}>
+            {/* Row 3: Infra — Claude + notes */}
+            <DemoRow title="Row #3 — infrastructure" show={showRow3}>
               <TerminalCell
-                dir="~/projects/infra"
-                command="terraform plan"
-                output={["Plan: 3 to add, 0 to change"]}
+                lines={ROW3_CLAUDE}
                 startAt={300}
-                focused={focusedCell === "r3-t1"}
+                focused={focusedCell === "r3-claude"}
               />
               <NotesCell
-                text={"# Infra\n\n- staging env\n- DNS cutover"}
+                text={"# Infra\n\n- staging env\n- DNS + SSL\n- CI/CD pipeline"}
                 focused={focusedCell === "r3-notes"}
               />
             </DemoRow>
@@ -389,7 +476,7 @@ export function Demo() {
         </div>
       </div>
 
-      {/* Scroll indicator */}
+      {/* Scroll dots */}
       <div className="flex justify-center mt-3 gap-1">
         {[0, 1, 2].map((i) => (
           <div
