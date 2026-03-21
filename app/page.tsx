@@ -35,11 +35,11 @@ export default function Home() {
       </div>
 
       <p className="mt-6 text-[var(--color-text-dim)] text-xs max-w-sm text-center opacity-60">
-        macOS may block the first open. Right-click the app → Open, or run:{" "}
-        <code className="text-[var(--color-accent)] opacity-80">
-          xattr -cr &quot;/Applications/Infinite Scroll.app&quot;
-        </code>
+        After installing, run this in Terminal to allow it:
       </p>
+      <code className="mt-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-4 py-2 text-xs text-[var(--color-accent)]">
+        xattr -cr /Applications/Infinite\ Scroll.app
+      </code>
     </main>
   );
 }
