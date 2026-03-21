@@ -6,12 +6,12 @@ const url = "https://infinite-scroll.dev";
 export const metadata: Metadata = {
   title: "Infinite Scroll — Terminal Workspace for macOS",
   description:
-    "A keyboard-driven terminal workspace with notes, session persistence, and infinite expandability.",
+    "One canvas. Every terminal you need. No more switching between tabs and apps.",
   metadataBase: new URL(url),
   openGraph: {
     title: "Infinite Scroll",
     description:
-      "A terminal workspace that never forgets. Split, stack, and persist your sessions.",
+      "One canvas. Every terminal you need. No more switching between tabs and apps.",
     url,
     siteName: "Infinite Scroll",
     images: [
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Infinite Scroll",
     description:
-      "A terminal workspace that never forgets. Split, stack, and persist your sessions.",
+      "One canvas. Every terminal you need. No more switching between tabs and apps.",
     images: ["/og.png"],
   },
 };

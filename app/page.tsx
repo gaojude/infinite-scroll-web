@@ -5,9 +5,9 @@ export default function Home() {
         Infinite Scroll
       </h1>
       <p className="mt-4 text-[var(--color-text-dim)] text-sm md:text-base max-w-md text-center">
-        A terminal workspace that never forgets.
+        One canvas. Every terminal you need.
         <br />
-        Split, stack, and persist your sessions.
+        No more switching between tabs and apps.
       </p>
 
       <div className="mt-8 flex flex-col sm:flex-row gap-3">
