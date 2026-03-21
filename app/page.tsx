@@ -10,7 +10,7 @@ An infinite list of terminals.
 
       <div className="mt-8 flex flex-col sm:flex-row gap-3">
         <a
-          href="/InfiniteScroll-v1.0.8.dmg"
+          href="/InfiniteScroll-v1.0.9.dmg"
           className="inline-flex items-center gap-2 bg-white text-black px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
