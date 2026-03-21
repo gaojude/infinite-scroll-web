@@ -5,9 +5,7 @@ export default function Home() {
         Infinite Scroll
       </h1>
       <p className="mt-4 text-[var(--color-text-dim)] text-sm md:text-base max-w-md text-center">
-        One canvas. Every terminal you need.
-        <br />
-        No more switching between tabs and apps.
+An infinite list of terminals.
       </p>
 
       <div className="mt-8 flex flex-col sm:flex-row gap-3">
