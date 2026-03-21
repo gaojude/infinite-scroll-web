@@ -265,7 +265,7 @@ export default function TerminalDemo() {
             rowCountRef.current += 1;
             const newId = rowCountRef.current;
             const rowCount = rowCountRef.current;
-            setHint("⌘⇧↓");
+            setHint("⌘ Shift ↓");
             setRows((prev) => [...prev, makeRow(newId)]);
             const totalHeight = rowCount * (ROW_HEIGHT + 10) + 10;
             const viewportH = 420;
