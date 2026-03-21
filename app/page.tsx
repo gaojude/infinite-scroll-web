@@ -33,6 +33,13 @@ export default function Home() {
           Source
         </a>
       </div>
+
+      <p className="mt-6 text-[var(--color-text-dim)] text-xs max-w-sm text-center opacity-60">
+        macOS may block the first open. Right-click the app → Open, or run:{" "}
+        <code className="text-[var(--color-accent)] opacity-80">
+          xattr -cr &quot;/Applications/Infinite Scroll.app&quot;
+        </code>
+      </p>
     </main>
   );
 }
