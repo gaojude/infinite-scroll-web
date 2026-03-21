@@ -38,7 +38,7 @@ export default function Home() {
         After installing, run this in Terminal to allow it:
       </p>
       <code className="mt-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-4 py-2 text-xs text-[var(--color-accent)]">
-        xattr -cr /Applications/Infinite\ Scroll.app
+        sudo xattr -cr /Applications/Infinite\ Scroll.app
       </code>
     </main>
   );
