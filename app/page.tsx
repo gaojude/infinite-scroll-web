@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-16">
       <h1 className="text-3xl md:text-5xl font-bold tracking-tight">
-        Infinite Scroll
+        infinite-scroll.dev
       </h1>
       <p className="mt-4 text-[var(--color-text-dim)] text-sm md:text-base max-w-md text-center">
         An infinite list of terminals.
