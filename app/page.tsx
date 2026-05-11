@@ -8,7 +8,8 @@ export default function Home() {
       </h1>
       <p className="mt-4 text-[var(--color-text-dim)] text-sm md:text-base max-w-md text-center">
         An infinite list of terminals. Drive a fleet from the CLI — your AI
-        agent can read, write, and focus cells.
+        agent can read, write, and focus cells. Edit → Copy CLI Prompt to
+        brief your agent.
       </p>
 
       <div className="mt-10 w-full flex justify-center">
@@ -17,7 +18,7 @@ export default function Home() {
 
       <div className="mt-10 flex flex-col sm:flex-row gap-3">
         <a
-          href="/InfiniteScroll-v1.0.18.dmg"
+          href="/InfiniteScroll-v1.0.19.dmg"
           className="inline-flex items-center gap-2 bg-white text-black px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
