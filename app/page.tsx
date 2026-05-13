@@ -1,15 +1,14 @@
 import TerminalDemo from "./components/TerminalDemo";
+import AISection from "./components/AISection";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-16">
+    <main className="min-h-screen flex flex-col items-center px-4 py-16">
       <h1 className="text-3xl md:text-5xl font-bold tracking-tight">
         infinite-scroll.dev
       </h1>
       <p className="mt-4 text-[var(--color-text-dim)] text-sm md:text-base max-w-md text-center">
-        An infinite list of terminals. Drive a fleet from the CLI — your AI
-        agent can read, write, and focus cells. Edit → Copy CLI Prompt to
-        brief your agent.
+        An infinite list of terminals.
       </p>
 
       <div className="mt-10 w-full flex justify-center">
@@ -46,6 +45,8 @@ export default function Home() {
       <code className="mt-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-4 py-2 text-xs text-[var(--color-accent)]">
         sudo xattr -cr /Applications/Infinite\ Scroll.app
       </code>
+
+      <AISection />
     </main>
   );
 }
